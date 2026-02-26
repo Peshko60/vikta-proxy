@@ -1,23 +1,51 @@
 {
   "name": "vikta-proxy",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Proxy VIKTA — serveur local HTTP + app macOS",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start":    "node server.js",
+    "electron": "electron .",
+    "dist:mac": "electron-builder --mac --universal"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "exceljs": "^4.4.0",
-    "express": "^5.2.1",
-    "jszip": "^3.10.1",
-    "mammoth": "^1.11.0",
-    "pdf-parse": "^1.1.1",
-    "undici": "^7.16.0",
-    "xml2js": "^0.6.2"
+    "cors":     "^2.8.5",
+    "dotenv":   "^17.2.3",
+    "exceljs":  "^4.4.0",
+    "express":  "^5.2.1",
+    "jszip":    "^3.10.1",
+    "mammoth":  "^1.11.0",
+    "pdf-parse":"^1.1.1",
+    "undici":   "^7.16.0",
+    "xml2js":   "^0.6.2"
+  },
+  "devDependencies": {
+    "electron":         "^33.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId":       "com.vikta.proxy",
+    "productName": "Proxy VIKTA",
+    "copyright":   "© 2026 VIKTA",
+    "files": [
+      "main.js",
+      "preload.js",
+      "settings.html",
+      "server.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category":         "public.app-category.developer-tools",
+      "hardenedRuntime":  false,
+      "gatekeeperAssess": false,
+      "identity":         null,
+      "target": [
+        { "target": "dmg", "arch": ["universal"] }
+      ]
+    },
+    "dmg": {
+      "title": "Proxy VIKTA"
+    }
   }
 }

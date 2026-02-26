@@ -696,6 +696,10 @@ res.json(result);
 });
 
 
-app.listen(PORT, () => {
-  console.log(`🚀 Proxy VIKTA en écoute sur http://localhost:${PORT}/vikta-ai`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Proxy VIKTA en écoute sur http://localhost:${PORT}/vikta-ai`);
+  });
+}
+
+module.exports = { app };

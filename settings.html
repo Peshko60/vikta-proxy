@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proxy VIKTA — Paramètres</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f5f5f5;
+      --surface:  #ffffff;
+      --border:   #d0d0d0;
+      --text:     #1a1a1a;
+      --muted:    #666;
+      --accent:   #0071e3;
+      --green:    #1e7e34;
+      --green-bg: #d4edda;
+      --red:      #c0392b;
+      --red-bg:   #fde8e6;
+      --radius:   8px;
+      --font:     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:       #1c1c1e;
+        --surface:  #2c2c2e;
+        --border:   #48484a;
+        --text:     #f2f2f7;
+        --muted:    #8e8e93;
+        --accent:   #0a84ff;
+        --green:    #32d74b;
+        --green-bg: #1c3a24;
+        --red:      #ff453a;
+        --red-bg:   #3a1c1c;
+      }
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    h1   { font-size: 17px; font-weight: 600; }
+    .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* Status bar */
+    .status-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .dot.on  { background: #34c759; }
+    .dot.off { background: #ff3b30; }
+    .status-label { font-size: 13px; flex: 1; }
+    .url-chip {
+      font-size: 12px; font-family: "SF Mono", "Fira Code", Menlo, monospace;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      padding: 2px 8px; cursor: pointer; color: var(--accent); white-space: nowrap;
+      user-select: none;
+    }
+    .url-chip:hover { opacity: 0.7; }
+
+    /* Card */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label  { font-size: 12px; font-weight: 500; color: var(--muted); }
+
+    .input-row {
+      display: flex; align-items: center;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); overflow: hidden;
+    }
+    .input-row:focus-within { border-color: var(--accent); }
+
+    input {
+      flex: 1; border: none; outline: none;
+      background: transparent; color: var(--text);
+      font-size: 13px; font-family: var(--font); padding: 8px 10px;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    .eye {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 0 10px; font-size: 14px;
+    }
+    .eye:hover { color: var(--text); }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; }
+
+    .btn {
+      flex: 1; padding: 9px 0; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--border); font-family: var(--font);
+      transition: background 0.15s;
+    }
+    .btn-primary   { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: #005bbf; }
+    .btn-secondary { background: transparent; color: var(--text); }
+    .btn-secondary:hover { background: rgba(0,0,0,.06); }
+    .btn-stop { color: var(--red); border-color: var(--red); background: transparent; }
+    .btn-stop:hover { background: var(--red-bg); }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* Feedback */
+    .msg { font-size: 12px; padding: 8px 12px; border-radius: 5px; display: none; }
+    .msg.show { display: block; }
+    .msg.ok  { background: var(--green-bg); color: var(--green); }
+    .msg.err { background: var(--red-bg);   color: var(--red);   }
+  </style>
+</head>
+<body>
+
+  <div>
+    <h1>Proxy VIKTA</h1>
+    <p class="sub">Serveur local pour les fonctions IA de VIKTA</p>
+  </div>
+
+  <div class="status-bar">
+    <span class="dot" id="dot"></span>
+    <span class="status-label" id="statusLabel">Vérification…</span>
+    <span class="url-chip" id="urlChip" style="display:none" title="Cliquer pour copier l'URL"></span>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label>Clé API OpenAI (ChatGPT)</label>
+      <div class="input-row">
+        <input type="password" id="openaiKey" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+        <button class="eye" data-target="openaiKey" title="Afficher / masquer">👁</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Clé API Anthropic (Claude)</label>
+      <div class="input-row">
+        <input type="password" id="anthropicKey" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
+        <button class="eye" data-target="anthropicKey" title="Afficher / masquer">👁</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Port (défaut : 3000)</label>
+      <div class="input-row" style="max-width:120px">
+        <input type="number" id="port" min="1024" max="65535" value="3000" />
+      </div>
+    </div>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="btnToggle">Démarrer</button>
+    <button class="btn btn-primary"   id="btnSave">Enregistrer</button>
+  </div>
+
+  <script>
+    const dot         = document.getElementById('dot');
+    const statusLabel = document.getElementById('statusLabel');
+    const urlChip     = document.getElementById('urlChip');
+    const openaiKey   = document.getElementById('openaiKey');
+    const anthropicKey= document.getElementById('anthropicKey');
+    const portInput   = document.getElementById('port');
+    const btnToggle   = document.getElementById('btnToggle');
+    const btnSave     = document.getElementById('btnSave');
+    const msgEl       = document.getElementById('msg');
+
+    function showMsg(text, type) {
+      msgEl.textContent = text;
+      msgEl.className = 'msg show ' + type;
+      setTimeout(() => { msgEl.className = 'msg'; }, 4000);
+    }
+
+    function setStatus(status) {
+      // status: { running, port, error? }
+      if (status.running) {
+        dot.className = 'dot on';
+        statusLabel.textContent = 'En écoute sur localhost:' + status.port;
+        urlChip.textContent = 'http://localhost:' + status.port + '/vikta-ai';
+        urlChip.dataset.url  = urlChip.textContent;
+        urlChip.style.display = '';
+        btnToggle.textContent = 'Arrêter';
+        btnToggle.className   = 'btn btn-stop';
+      } else {
+        dot.className = 'dot off';
+        statusLabel.textContent = status.error ? 'Erreur : ' + status.error : 'Arrêté';
+        urlChip.style.display = 'none';
+        btnToggle.textContent = 'Démarrer';
+        btnToggle.className   = 'btn btn-secondary';
+      }
+    }
+
+    // Show/hide key
+    document.querySelectorAll('.eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      });
+    });
+
+    // Copy URL
+    urlChip.addEventListener('click', () => {
+      navigator.clipboard.writeText(urlChip.dataset.url).then(() => {
+        const orig = urlChip.textContent;
+        urlChip.textContent = '✓ Copié';
+        setTimeout(() => { urlChip.textContent = orig; }, 1500);
+      });
+    });
+
+    // Load settings on open
+    window.vikta.getSettings().then(s => {
+      openaiKey.value    = s.openaiKey    || '';
+      anthropicKey.value = s.anthropicKey || '';
+      portInput.value    = s.port         || 3000;
+    });
+
+    // Listen to server status changes pushed from main process
+    window.vikta.onStatusChange(setStatus);
+
+    // Save
+    btnSave.addEventListener('click', async () => {
+      btnSave.disabled = true;
+      const result = await window.vikta.saveSettings({
+        openaiKey:    openaiKey.value.trim(),
+        anthropicKey: anthropicKey.value.trim(),
+        port:         parseInt(portInput.value, 10) || 3000,
+      });
+      btnSave.disabled = false;
+      if (result.ok) {
+        showMsg('Paramètres enregistrés.', 'ok');
+        setStatus({ running: result.running, port: result.port });
+      } else {
+        showMsg('Erreur : ' + (result.error || 'inconnue'), 'err');
+      }
+    });
+
+    // Toggle server
+    btnToggle.addEventListener('click', async () => {
+      btnToggle.disabled = true;
+      const result = await window.vikta.toggleServer();
+      btnToggle.disabled = false;
+      setStatus(result);
+      if (result.error) showMsg('Erreur : ' + result.error, 'err');
+    });
+  </script>
+</body>
+</html>
