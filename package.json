@@ -1,0 +1,23 @@
+{
+  "name": "vikta-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^1.1.1",
+    "undici": "^7.16.0",
+    "xml2js": "^0.6.2"
+  }
+}

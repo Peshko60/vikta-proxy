@@ -1,0 +1,8 @@
+# Secrets
+.env
+
+# Dependencies
+node_modules/
+
+# OS
+*.bat
