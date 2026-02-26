@@ -646,7 +646,6 @@ Ces règles sont implicites pour tout écran de processus.
 
     const oaiBody = {
       model: resolvedModel,
-      temperature: 0.0,
       messages: [
         { role: "system", content: sysMsg },
         ...(conversation || []),

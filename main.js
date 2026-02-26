@@ -159,7 +159,7 @@ function openSettings() {
 
   settingsWin = new BrowserWindow({
     width: 480, height: 500,
-    resizable: false, minimizable: false, maximizable: false,
+    resizable: false, minimizable: true, maximizable: false,
     show: false,
     title: 'Proxy VIKTA — Paramètres',
     webPreferences: {
@@ -193,9 +193,8 @@ app.whenReady().then(async () => {
       // Port conflict or other error — let user fix in settings
     }
     rebuildTray();
-  } else {
-    openSettings(); // first launch
   }
+  openSettings(); // toujours ouvrir la fenêtre au démarrage
 });
 
 app.on('window-all-closed', () => { /* stay in tray */ });

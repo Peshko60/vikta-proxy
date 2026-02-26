@@ -56,7 +56,7 @@
     "nsis": {
       "oneClick":          true,
       "perMachine":        false,
-      "installerLanguage": "French",
+      "language": "1036",
       "shortcutName":      "Proxy VIKTA"
     }
   }
