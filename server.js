@@ -18,8 +18,8 @@ setGlobalDispatcher(
 
 
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️  OPENAI_API_KEY n'est pas défini dans les variables d'environnement.");
+if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+  console.warn("⚠️  Aucune clé API configurée (OPENAI_API_KEY ou ANTHROPIC_API_KEY).");
 }
 
 const app = express();
@@ -219,16 +219,22 @@ conformément aux règles définies dans le message système.
 
 
 
-async function callOpenAIChat({ system, mode, prompt, images = [], files = [], conversation = [] }) {
+async function callAI({ system, mode, prompt, images = [], files = [], conversation = [], provider, model }) {
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Resolve provider: request param > env fallback
+  if (!provider) {
+    provider = process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY ? "anthropic" : "openai";
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
   const sysMsgChat = `
 Tu es un assistant fonctionnel pour l’application VIKTA.
 
 RÈGLES STRICTES (OBLIGATOIRES) :
 - Tu réponds UNIQUEMENT en TEXTE BRUT.
-- Interdiction d'utiliser des balises HTML (<...>), Markdown, ou des blocs de code.
+- Interdiction d’utiliser des balises HTML (<...>), Markdown, ou des blocs de code.
 - Si on parle de code, tu décris en phrases, sans formater en HTML.
 - Réponses courtes et utiles.
 `;
@@ -236,9 +242,8 @@ RÈGLES STRICTES (OBLIGATOIRES) :
 
 
 let sysMsg;
-
 if (mode === "chat") {
-  sysMsg = sysMsgChat;
+  sysMsg = system || sysMsgChat;
 } else if (mode === "translate") {
   sysMsg = `You are a professional French-to-English translator working on HTML documents.
 
@@ -513,14 +518,17 @@ Ces règles sont implicites pour tout écran de processus.
 }
 
 
-  if (!apiKey) {
+  if (provider === "anthropic" && !anthropicKey) {
+    throw new Error("ANTHROPIC_API_KEY manquant côté serveur.");
+  }
+  if (provider !== "anthropic" && !openaiKey) {
     throw new Error("OPENAI_API_KEY manquant côté serveur.");
   }
 
   let aggregatedDocText = "";
-  let debugUserText = "[SYSTEM]\n" + sysMsg + "\n\n[USER]\n"; // 🔐 ce qu'on renverra au front pour debug
+  let debugUserText = "[SYSTEM]\n" + sysMsg + "\n\n[USER]\n";
 
-  // ----- 1) Extraction texte des fichiers (comme avant) -----
+  // ----- 1) Extraction texte des fichiers -----
   if (Array.isArray(files) && files.length) {
     const docParts = [];
 
@@ -535,113 +543,149 @@ Ces règles sont implicites pour tout écran de processus.
 
       if (isPdf && data) {
         const pdfText = await extractTextFromPdf(data);
-        if (pdfText) {
-          docParts.push(`[Contenu extrait du PDF ${name}]\n` + pdfText);
-        }
+        if (pdfText) docParts.push(`[Contenu extrait du PDF ${name}]\n` + pdfText);
       } else if (isDocx && data) {
         const docxText = await extractTextFromDocx(data);
-        if (docxText) {
-          docParts.push(`[Contenu extrait du fichier Word ${name}]\n` + docxText);
-        }
+        if (docxText) docParts.push(`[Contenu extrait du fichier Word ${name}]\n` + docxText);
       } else if (isXlsx && data) {
         const xlsxText = await extractTextFromXlsx(data);
-        if (xlsxText) {
-          docParts.push(`[Contenu extrait du fichier Excel ${name}]\n` + xlsxText);
-        }
+        if (xlsxText) docParts.push(`[Contenu extrait du fichier Excel ${name}]\n` + xlsxText);
       } else if (isPptx && data) {
         const pptxText = await extractTextFromPptx(data);
-        if (pptxText) {
-          docParts.push(`[Contenu extrait du fichier PowerPoint ${name}]\n` + pptxText);
-        }
+        if (pptxText) docParts.push(`[Contenu extrait du fichier PowerPoint ${name}]\n` + pptxText);
       }
     }
 
     aggregatedDocText = docParts.join("\n\n");
   }
 
-  // ----- 2) Construction du content user + debugUserText -----
-  const userContent = [];
+  // ----- 2) Construction du contenu utilisateur -----
+  const userContentText = [];
 
   if (aggregatedDocText) {
-    const docBlock =
-      DOC_CONTEXT_INTRO +
-      "\n\n--- DOCUMENT(S) SOURCE ---\n\n" +
-      aggregatedDocText +
-      "\n\n--- FIN DOCUMENT(S) SOURCE ---\n\n";
-
-    userContent.push({
-      type: "text",
-      text: docBlock
-    });
-
+    const docBlock = DOC_CONTEXT_INTRO + "\n\n--- DOCUMENT(S) SOURCE ---\n\n" + aggregatedDocText + "\n\n--- FIN DOCUMENT(S) SOURCE ---\n\n";
+    userContentText.push({ type: "text", text: docBlock });
     debugUserText += docBlock + "\n\n";
   }
 
   const promptText = prompt || "";
-  userContent.push({
-    type: "text",
-    text: promptText
-  });
-
+  userContentText.push({ type: "text", text: promptText });
   debugUserText += promptText;
 
-  // Images éventuelles
-  for (const url of images || []) {
-    if (!url) continue;
-    userContent.push({
-      type: "image_url",
-      image_url: { url }
-    });
-  }
-
-const body = {
-  model: "gpt-4.1",
-  temperature: 0.0,
-  messages: [
-    { role: "system", content: sysMsg },
-    ...conversation,
-    { role: "user", content: userContent }
-  ]
-};
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error("Erreur OpenAI: " + res.status + " " + txt);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || "";
-
   function stripHtml(s) {
-  return String(s || "").replace(/<[^>]*>/g, "").trim();
-}
+    return String(s || "").replace(/<[^>]*>/g, "").trim();
+  }
 
-if (mode === "chat") {
-  return { text: stripHtml(content), debugUserText };
-}
+  // ----- 3) Appel API selon provider -----
+  if (provider === "anthropic") {
+    const resolvedModel = model || (mode === "generate" ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001");
 
-return { html: content, debugUserText };
+    // Build Anthropic messages (conversation history + user message)
+    const anthropicMsgs = [];
+    for (const m of (conversation || [])) {
+      if (m.role === "system") continue; // system handled separately
+      const parts = Array.isArray(m.content)
+        ? m.content
+        : [{ type: "text", text: String(m.content || "") }];
+      anthropicMsgs.push({ role: m.role, content: parts });
+    }
+
+    // Add images to user content for Anthropic
+    const anthropicUserContent = [...userContentText];
+    for (const url of (images || [])) {
+      if (!url) continue;
+      const m2 = url.match(/^data:([^;]+);base64,(.+)$/);
+      if (m2) {
+        anthropicUserContent.push({ type: "image", source: { type: "base64", media_type: m2[1], data: m2[2] } });
+      } else {
+        anthropicUserContent.push({ type: "image", source: { type: "url", url } });
+      }
+    }
+
+    anthropicMsgs.push({ role: "user", content: anthropicUserContent });
+
+    const anthropicBody = {
+      model: resolvedModel,
+      max_tokens: 16000,
+      system: sysMsg,
+      messages: anthropicMsgs
+    };
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(anthropicBody)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error("Erreur Anthropic: " + res.status + " " + txt);
+    }
+
+    const data = await res.json();
+    const content = data.content && data.content[0] ? data.content[0].text || "" : "";
+    const usage = data.usage ? { input_tokens: data.usage.input_tokens, output_tokens: data.usage.output_tokens } : undefined;
+
+    if (mode === "chat") return { text: stripHtml(content), debugUserText, usage };
+    return { html: content, debugUserText, usage };
+
+  } else {
+    // ----- OpenAI -----
+    const resolvedModel = model || "gpt-4.1";
+
+    // Build OpenAI user content (with images)
+    const oaiUserContent = [...userContentText];
+    for (const url of (images || [])) {
+      if (!url) continue;
+      oaiUserContent.push({ type: "image_url", image_url: { url } });
+    }
+
+    const oaiBody = {
+      model: resolvedModel,
+      temperature: 0.0,
+      messages: [
+        { role: "system", content: sysMsg },
+        ...(conversation || []),
+        { role: "user", content: oaiUserContent }
+      ]
+    };
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + openaiKey, "Content-Type": "application/json" },
+      body: JSON.stringify(oaiBody)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error("Erreur OpenAI: " + res.status + " " + txt);
+    }
+
+    const data = await res.json();
+    const content = data.choices && data.choices[0] ? data.choices[0].message.content || "" : "";
+    const usage = data.usage ? { prompt_tokens: data.usage.prompt_tokens, completion_tokens: data.usage.completion_tokens } : undefined;
+
+    if (mode === "chat") return { text: stripHtml(content), debugUserText, usage };
+    return { html: content, debugUserText, usage };
+  }
 }
 
 app.post("/vikta-ai", async (req, res) => {
   try {
-    const { system,mode, prompt, images = [], files = [], conversation = [] } = req.body || {};
-   const result = await callOpenAIChat({ 
+    const { system, mode, prompt, images = [], files = [], conversation = [], provider, model } = req.body || {};
+   const result = await callAI({
   system,
   mode,
   prompt,
   images,
   files,
-  conversation
+  conversation,
+  provider,
+  model,
 });
 
 res.json(result);
