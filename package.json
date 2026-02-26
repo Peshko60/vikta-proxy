@@ -6,7 +6,8 @@
   "scripts": {
     "start":    "node server.js",
     "electron": "electron .",
-    "dist:mac": "electron-builder --mac --universal"
+    "dist:mac": "electron-builder --mac --universal",
+    "dist:win": "electron-builder --win --x64"
   },
   "dependencies": {
     "cors":     "^2.8.5",
@@ -46,6 +47,17 @@
     },
     "dmg": {
       "title": "Proxy VIKTA"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick":          true,
+      "perMachine":        false,
+      "installerLanguage": "French",
+      "shortcutName":      "Proxy VIKTA"
     }
   }
 }
