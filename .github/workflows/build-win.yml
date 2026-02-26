@@ -1,0 +1,44 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installer (NSIS x64)
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Upload installer (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Proxy-VIKTA-win
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Créer une GitHub Release (sur tag v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
